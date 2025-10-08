@@ -14,16 +14,27 @@
             margin: 0;
         }
         #route-input {
-            width: 100%;
+            flex-grow: 1;
             padding: 10px;
             font-size: 16px;
             box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #direction-select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
         }
         #route-search {
+            display: flex;
             padding: 10px;
             background-color: #e0e0e0;
             position: relative;
             z-index: 1001;
+            gap: 10px;
         }
         #map {
             flex-grow: 1;
