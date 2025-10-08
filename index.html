@@ -70,6 +70,8 @@
         }
         .back-button {
             margin-bottom: 10px;
+            padding: 10px 15px;
+            font-size: 16px;
         }
         @media (max-width: 600px) {
             #info {
@@ -81,8 +83,7 @@
 <body>
     <div id="route-search">
         <input type="text" id="route-input" placeholder="輸入巴士路線 (例如 1A)">
-        <div id="search-results"></div>
-        <select id="direction-select"></select>
+        <span>往 </span><select id="direction-select"></select>
     </div>
     <div id="map"></div>
     <div id="info">
@@ -175,13 +176,11 @@
                 $.get(`${API_BASE_URL}/v1/transport/kmb/route/${route}/inbound/1`)
             ).done((outboundRes, inboundRes) => {
                 directionSelect.empty();
-                let hasOutbound = false;
-                if (outboundRes[0] && outboundRes[0].data) {
-                    directionSelect.append(`<option value="outbound">往 ${outboundRes[0].data.dest_tc}</option>`);
-                    hasOutbound = true;
+                if (outboundRes[0] && outboundRes[0].data && outboundRes[0].data.dest_tc) {
+                    directionSelect.append(`<option value="outbound">${outboundRes[0].data.dest_tc}</option>`);
                 }
-                if (inboundRes[0] && inboundRes[0].data) {
-                    directionSelect.append(`<option value="inbound">往 ${inboundRes[0].data.dest_tc}</option>`);
+                if (inboundRes[0] && inboundRes[0].data && inboundRes[0].data.dest_tc) {
+                    directionSelect.append(`<option value="inbound">${inboundRes[0].data.dest_tc}</option>`);
                 }
 
                 if (directionSelect.children().length > 0) {
