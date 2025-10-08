@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>巴士到站時間地圖</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+        }
+        #map {
+            height: 70%;
+            width: 100%;
+        }
+        #info {
+            height: 30%;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f2f2f2;
+        }
+        #route-search {
+            padding: 10px;
+            background-color: #e0e0e0;
+            position: relative;
+        }
+        #search-results {
+            position: absolute;
+            background-color: white;
+            width: calc(100% - 20px);
+            border: 1px solid #ccc;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .result-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .result-item:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="route-search">
+        <input type="text" id="route-input" placeholder="輸入巴士路線 (例如 1A)">
+        <div id="search-results"></div>
+        <select id="direction-select"></select>
+    </div>
+    <div id="map"></div>
+    <div id="info">
+        <p>請在地圖上選擇一個巴士站以查看預計到達時間。</p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const map = L.map('map').setView([22.3193, 114.1694], 13); // Default view of Hong Kong
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const API_BASE_URL = 'https://api.allorigins.win/raw?url=https://data.etabus.gov.hk';
+        let stopMarkers = L.layerGroup().addTo(map);
+        let allRoutes = [];
+
+        $(document).ready(() => {
+            $.get(`${API_BASE_URL}/v1/transport/kmb/route/`).done(res => {
+                if (res && res.data) {
+                    allRoutes = res.data;
+                }
+            });
+        });
+
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        $('#route-input').on('input', debounce(function() {
+            const input = $(this).val().toUpperCase();
+            const results = $('#search-results');
+            results.empty();
+
+            if (!input) return;
+
+            const filteredRoutes = allRoutes.filter(route => route.route.includes(input));
+            const uniqueRoutes = [...new Set(filteredRoutes.map(item => item.route))];
+
+            uniqueRoutes.forEach(route => {
+                results.append(`<div class="result-item">${route}</div>`);
+            });
+        }, 300));
+
+        $(document).on('click', '.result-item', function() {
+            const route = $(this).text();
+            $('#route-input').val(route);
+            $('#search-results').empty();
+            updateDirectionOptions(route);
+        });
+
+        $('#direction-select').on('change', () => {
+            const route = $('#route-input').val().toUpperCase();
+            const direction = $('#direction-select').val();
+            if (route && direction) {
+                fetchAndDisplayStops(route, direction);
+            }
+        });
+
+        function updateDirectionOptions(route) {
+            const directionSelect = $('#direction-select');
+            directionSelect.empty();
+            directionSelect.append('<option value="">正在獲取方向...</option>');
+
+            $.when(
+                $.get(`${API_BASE_URL}/v1/transport/kmb/route/${route}/outbound/1`),
+                $.get(`${API_BASE_URL}/v1/transport/kmb/route/${route}/inbound/1`)
+            ).done((outboundRes, inboundRes) => {
+                directionSelect.empty();
+                let hasOutbound = false;
+                if (outboundRes[0] && outboundRes[0].data) {
+                    directionSelect.append(`<option value="outbound">往 ${outboundRes[0].data.dest_tc}</option>`);
+                    hasOutbound = true;
+                }
+                if (inboundRes[0] && inboundRes[0].data) {
+                    directionSelect.append(`<option value="inbound">往 ${inboundRes[0].data.dest_tc}</option>`);
+                }
+
+                if (directionSelect.children().length > 0) {
+                    directionSelect.trigger('change');
+                } else {
+                    directionSelect.empty();
+                    directionSelect.append('<option value="">找不到方向</option>');
+                }
+            }).fail(() => {
+                directionSelect.empty();
+                directionSelect.append('<option value="">獲取方向失敗</option>');
+            });
+        }
+
+        function fetchAndDisplayStops(route, direction) {
+            stopMarkers.clearLayers();
+            $('#info').html('<p>正在加載路線資料...</p>');
+
+            $.get(`${API_BASE_URL}/v1/transport/kmb/route-stop/${route}/${direction}/1`)
+                .done(routeStopRes => {
+                    if (!routeStopRes || !routeStopRes.data || routeStopRes.data.length === 0) {
+                        $('#info').html('<p>找不到路線資料。</p>');
+                        return;
+                    }
+
+                    const stops = {};
+                    routeStopRes.data.forEach(stop => {
+                        stops[stop.stop] = stop;
+                    });
+
+                    $.get(`${API_BASE_URL}/v1/transport/kmb/stop`).done(allStopsRes => {
+                        if (!allStopsRes || !allStopsRes.data) {
+                            $('#info').html('<p>無法加載車站位置。</p>');
+                            return;
+                        }
+
+                        const stopDetails = {};
+                        allStopsRes.data.forEach(stop => {
+                            stopDetails[stop.stop] = stop;
+                        });
+
+                        Object.values(stops).forEach(stopInfo => {
+                            const detail = stopDetails[stopInfo.stop];
+                            if (detail) {
+                                const marker = L.marker([detail.lat, detail.long]).addTo(stopMarkers);
+                                marker.on('click', () => {
+                                    getStopETA(detail.stop, route, direction);
+                                    map.setView([detail.lat, detail.long], 16);
+                                });
+                                marker.bindTooltip(`${detail.name_tc}<br>路線: ${route}`);
+                            }
+                        });
+                        $('#info').html('<p>請在地圖上選擇一個巴士站以查看預計到達時間。</p>');
+                    });
+                })
+                .fail(() => {
+                    $('#info').html('<p>無法獲取路線資料，請檢查路線號碼和方向是否正確。</p>');
+                });
+        }
+
+        function getStopETA(stopId, route, direction) {
+            $('#info').html('<p>正在獲取到站時間...</p>');
+            $.get(`${API_BASE_URL}/v1/transport/kmb/stop-eta/${stopId}`)
+                .done(etaData => {
+                    if (etaData && etaData.data && etaData.data.length > 0) {
+                        let html = `<h3>${route} 號線在 ${stopId} 的預計到達時間</h3><ul>`;
+                        const filteredEta = etaData.data.filter(eta => eta.route === route && (direction === 'outbound' ? eta.dir === 'O' : eta.dir === 'I'));
+
+                        if (filteredEta.length > 0) {
+                            filteredEta.forEach(eta => {
+                                const etaTime = new Date(eta.eta);
+                                const now = new Date();
+                                const diff = Math.round((etaTime - now) / 60000);
+                                html += `<li>往 ${eta.dest_tc}：${diff} 分鐘後到達 (${etaTime.toLocaleTimeString()}) ${eta.rmk_tc || ''}</li>`;
+                            });
+                        } else {
+                            html += '<li>暫無此路線的到站時間資訊。</li>';
+                        }
+                        html += '</ul>';
+                        $('#info').html(html);
+                    } else {
+                        $('#info').html('<p>暫無到站時間資訊。</p>');
+                    }
+                })
+                .fail(() => {
+                    $('#info').html('<p>獲取到站時間失敗。</p>');
+                });
+        }
+    </script>
+</body>
+</html>
