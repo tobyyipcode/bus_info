@@ -105,7 +105,7 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        const API_BASE_URL = 'https://api.codetabs.com/v1/proxy?quest=https://data.etabus.gov.hk';
+        const API_BASE_URL = '/api';
         let stopMarkers = L.layerGroup().addTo(map);
         let allRoutes = [];
         let stopListHtml = '';
@@ -244,7 +244,7 @@
                             const detail = stopDetails[stopInfo.stop];
                             if (detail) {
                                 stopsHtml += `<li class="stop-list-item" data-stop-id="${detail.stop}" data-lat="${detail.lat}" data-long="${detail.long}">${detail.name_tc}</li>`;
-                                const marker = L.marker([detail.lat, detail.long]).addTo(stopMarkers);
+                                const marker = L.marker([detail.lat, detail.l ong]).addTo(stopMarkers);
                                 marker.on('click', () => {
                                     getStopETA(detail.stop, route, direction);
                                     map.setView([detail.lat, detail.long], 16);
