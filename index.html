@@ -49,8 +49,19 @@
             padding: 8px;
             cursor: pointer;
         }
-        .stop-list-item:hover {
-            background-color: #f0f0f0;
+        .back-button {
+            margin-bottom: 10px;
+        }
+        @media (max-width: 600px) {
+            body {
+                flex-direction: column-reverse;
+            }
+            #info {
+                height: 40%;
+            }
+            #map {
+                height: 60%;
+            }
         }
     </style>
 </head>
@@ -60,10 +71,10 @@
         <div id="search-results"></div>
         <select id="direction-select"></select>
     </div>
-    <div id="map"></div>
     <div id="info">
         <p>請在地圖上選擇一個巴士站以查看預計到達時間。</p>
     </div>
+    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -77,6 +88,7 @@
         const API_BASE_URL = '/api';
         let stopMarkers = L.layerGroup().addTo(map);
         let allRoutes = [];
+        let stopListHtml = '';
 
         $(document).ready(() => {
             $.get(`${API_BASE_URL}/v1/transport/kmb/route/`).done(res => {
@@ -136,6 +148,10 @@
             map.setView([lat, long], 16);
         });
 
+        $(document).on('click', '#back-button', function() {
+            $('#info').html(stopListHtml);
+        });
+
         function updateDirectionOptions(route) {
             const directionSelect = $('#direction-select');
             directionSelect.empty();
@@ -157,7 +173,8 @@
 
                 if (directionSelect.children().length > 0) {
                     directionSelect.trigger('change');
-                } else {
+                }
+                else {
                     directionSelect.empty();
                     directionSelect.append('<option value="">找不到方向</option>');
                 }
@@ -208,6 +225,7 @@
                             }
                         });
                         stopsHtml += '</ul>';
+                        stopListHtml = stopsHtml;
                         $('#info').html(stopsHtml);
                     });
                 })
@@ -221,7 +239,7 @@
             $.get(`${API_BASE_URL}/v1/transport/kmb/stop-eta/${stopId}`)
                 .done(etaData => {
                     if (etaData && etaData.data && etaData.data.length > 0) {
-                        let html = `<h3>${route} 號線在 ${stopId} 的預計到達時間</h3><ul>`;
+                        let html = `<button id="back-button" class="back-button">返回</button><h3>${route} 號線在 ${stopId} 的預計到達時間</h3><ul>`;
                         const filteredEta = etaData.data.filter(eta => eta.route === route && (direction === 'outbound' ? eta.dir === 'O' : eta.dir === 'I')).slice(0, 3);
 
                         if (filteredEta.length > 0) {
@@ -236,7 +254,8 @@
                         }
                         html += '</ul>';
                         $('#info').html(html);
-                    } else {
+                    }
+                    else {
                         $('#info').html('<p>暫無到站時間資訊。</p>');
                     }
                 })
