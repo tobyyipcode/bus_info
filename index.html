@@ -13,6 +13,14 @@
             height: 100vh;
             margin: 0;
         }
+        #route-search {
+            display: flex;
+            padding: 10px;
+            background-color: #e0e0e0;
+            position: relative;
+            z-index: 1001;
+            gap: 10px;
+        }
         #route-input {
             width: 10em;
             padding: 10px;
@@ -28,14 +36,6 @@
             border-radius: 4px;
             background-color: white;
         }
-        #route-search {
-            display: flex;
-            padding: 10px;
-            background-color: #e0e0e0;
-            position: relative;
-            z-index: 1001;
-            gap: 10px;
-        }
         #map {
             flex-grow: 1;
         }
@@ -47,8 +47,10 @@
         }
         #search-results {
             position: absolute;
+            top: 100%;
+            left: 10px;
+            right: 10px;
             background-color: white;
-            width: calc(100% - 20px);
             border: 1px solid #ccc;
             max-height: 200px;
             overflow-y: auto;
@@ -74,6 +76,9 @@
             font-size: 16px;
         }
         @media (max-width: 600px) {
+            #route-search {
+                flex-direction: column;
+            }
             #info {
                 height: 40%;
             }
@@ -83,6 +88,7 @@
 <body>
     <div id="route-search">
         <input type="text" id="route-input" placeholder="輸入巴士路線 (例如 1A)">
+        <div id="search-results"></div>
         <span>往 </span><select id="direction-select"></select>
     </div>
     <div id="map"></div>
@@ -99,7 +105,7 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        const API_BASE_URL = '/api';
+        const API_BASE_URL = 'https://api.codetabs.com/v1/proxy?quest=https://data.etabus.gov.hk';
         let stopMarkers = L.layerGroup().addTo(map);
         let allRoutes = [];
         let stopListHtml = '';
