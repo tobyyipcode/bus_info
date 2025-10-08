@@ -179,8 +179,13 @@
             });
         }
 
+        let routePolyline = null;
+
         function fetchAndDisplayStops(route, direction) {
             stopMarkers.clearLayers();
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
             $('#info').html('<p>正在加載路線資料...</p>');
 
             $.get(`${API_BASE_URL}/v1/transport/kmb/route-stop/${route}/${direction}/1`)
@@ -207,11 +212,13 @@
                         });
 
                         let stopsHtml = '<ul>';
-                        Object.values(stops).forEach(stopInfo => {
+                        const latlngs = [];
+                        Object.values(stops).sort((a, b) => a.seq - b.seq).forEach(stopInfo => {
                             const detail = stopDetails[stopInfo.stop];
                             if (detail) {
                                 stopsHtml += `<li class="stop-list-item" data-stop-id="${detail.stop}" data-lat="${detail.lat}" data-long="${detail.long}">${detail.name_tc}</li>`;
                                 const marker = L.marker([detail.lat, detail.long]).addTo(stopMarkers);
+                                latlngs.push([detail.lat, detail.long]);
                                 marker.on('click', () => {
                                     getStopETA(detail.stop, route, direction);
                                     map.setView([detail.lat, detail.long], 16);
@@ -222,6 +229,9 @@
                         stopsHtml += '</ul>';
                         stopListHtml = stopsHtml;
                         $('#info').html(stopsHtml);
+
+                        routePolyline = L.polyline(latlngs, { color: 'blue' }).addTo(map);
+                        map.fitBounds(routePolyline.getBounds());
                     });
                 })
                 .fail(() => {
