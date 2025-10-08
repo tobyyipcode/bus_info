@@ -45,6 +45,13 @@
         .result-item:hover {
             background-color: #f0f0f0;
         }
+        .stop-list-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .stop-list-item:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -61,7 +68,7 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        const map = L.map('map').setView([22.3193, 114.1694], 13); // Default view of Hong Kong
+        const map = L.map('map').setView([22.3193, 114.1694], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -116,6 +123,17 @@
             if (route && direction) {
                 fetchAndDisplayStops(route, direction);
             }
+        });
+
+        $(document).on('click', '.stop-list-item', function() {
+            const stopId = $(this).data('stop-id');
+            const route = $('#route-input').val().toUpperCase();
+            const direction = $('#direction-select').val();
+            const lat = $(this).data('lat');
+            const long = $(this).data('long');
+
+            getStopETA(stopId, route, direction);
+            map.setView([lat, long], 16);
         });
 
         function updateDirectionOptions(route) {
@@ -176,9 +194,11 @@
                             stopDetails[stop.stop] = stop;
                         });
 
+                        let stopsHtml = '<ul>';
                         Object.values(stops).forEach(stopInfo => {
                             const detail = stopDetails[stopInfo.stop];
                             if (detail) {
+                                stopsHtml += `<li class="stop-list-item" data-stop-id="${detail.stop}" data-lat="${detail.lat}" data-long="${detail.long}">${detail.name_tc}</li>`;
                                 const marker = L.marker([detail.lat, detail.long]).addTo(stopMarkers);
                                 marker.on('click', () => {
                                     getStopETA(detail.stop, route, direction);
@@ -187,7 +207,8 @@
                                 marker.bindTooltip(`${detail.name_tc}<br>路線: ${route}`);
                             }
                         });
-                        $('#info').html('<p>請在地圖上選擇一個巴士站以查看預計到達時間。</p>');
+                        stopsHtml += '</ul>';
+                        $('#info').html(stopsHtml);
                     });
                 })
                 .fail(() => {
