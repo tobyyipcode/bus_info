@@ -27,6 +27,7 @@
             padding: 10px;
             background-color: #e0e0e0;
             position: relative;
+            z-index: 1001;
         }
         #search-results {
             position: absolute;
@@ -200,7 +201,7 @@
                 .done(etaData => {
                     if (etaData && etaData.data && etaData.data.length > 0) {
                         let html = `<h3>${route} 號線在 ${stopId} 的預計到達時間</h3><ul>`;
-                        const filteredEta = etaData.data.filter(eta => eta.route === route && (direction === 'outbound' ? eta.dir === 'O' : eta.dir === 'I'));
+                        const filteredEta = etaData.data.filter(eta => eta.route === route && (direction === 'outbound' ? eta.dir === 'O' : eta.dir === 'I')).slice(0, 3);
 
                         if (filteredEta.length > 0) {
                             filteredEta.forEach(eta => {
